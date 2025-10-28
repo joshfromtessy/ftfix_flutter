@@ -12,7 +12,7 @@ import 'package:window_size/window_size.dart' as window_size;
 import 'package:xml/xml.dart';
 
 const String kCurrentVersion = '1.0.0';
-const String kGitHubOwner = 'jasmann';
+const String kGitHubOwner = 'joshfromtessy';
 const String kGitHubRepo = 'ftfix_flutter';
 
 Future<void> main() async {
@@ -102,6 +102,7 @@ class _AlarmFixHomeState extends State<AlarmFixHome> {
   bool _isCheckingUpdate = false;
   ReleaseInfo? _updateInfo;
   String? _updateError;
+  bool _dismissedUpdateBanner = false;
 
   @override
   void initState() {
@@ -260,7 +261,7 @@ class _AlarmFixHomeState extends State<AlarmFixHome> {
   }
 
   Widget _buildUpdateNotice() {
-    if (_isCheckingUpdate) {
+    if (_isCheckingUpdate || _dismissedUpdateBanner) {
       return const SizedBox.shrink();
     }
 
@@ -277,9 +278,23 @@ class _AlarmFixHomeState extends State<AlarmFixHome> {
           ),
           title: Text('Update available: v${info.version}'),
           subtitle: const Text('A newer release is ready on GitHub.'),
-          trailing: TextButton(
-            onPressed: _launchUpdateUrl,
-            child: const Text('Get Update'),
+          trailing: Wrap(
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: _launchUpdateUrl,
+                child: const Text('Get Update'),
+              ),
+              IconButton(
+                tooltip: 'Dismiss',
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _dismissedUpdateBanner = true;
+                  });
+                },
+              ),
+            ],
           ),
         ),
       );
@@ -295,9 +310,23 @@ class _AlarmFixHomeState extends State<AlarmFixHome> {
           ),
           title: const Text('Unable to check for updates'),
           subtitle: Text(_updateError!),
-          trailing: TextButton(
-            onPressed: _isCheckingUpdate ? null : _checkForUpdates,
-            child: const Text('Retry'),
+          trailing: Wrap(
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: _isCheckingUpdate ? null : _checkForUpdates,
+                child: const Text('Retry'),
+              ),
+              IconButton(
+                tooltip: 'Dismiss',
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _dismissedUpdateBanner = true;
+                  });
+                },
+              ),
+            ],
           ),
         ),
       );
@@ -393,8 +422,10 @@ class _AlarmFixHomeState extends State<AlarmFixHome> {
 
     try {
       info = await _fetchLatestRelease();
-    } catch (_) {
-      error = 'Check your connection and try again.';
+    } catch (err) {
+      error = err is HttpException
+          ? 'GitHub returned ${err.message}.'
+          : err.toString();
     }
 
     if (!mounted) {
